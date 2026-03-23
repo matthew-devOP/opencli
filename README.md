@@ -18,15 +18,13 @@ Turn ANY Electron application into a CLI tool! Recombine, script, and extend app
 
 ---
 
----
-
 ## Highlights
 
 - **CLI All Electron** — CLI-ify apps like Antigravity Ultra! Now AI can control itself natively using cc/openclaw!
 - **Account-safe** — Reuses Chrome's logged-in state; your credentials never leave the browser.
 - **AI Agent ready** — `explore` discovers APIs, `synthesize` generates adapters, `cascade` finds auth strategies.
 - **External CLI Hub** — Discover, auto-install, and passthrough commands to any external CLI (gh, obsidian, docker, kubectl, etc). Zero setup.
-- **Self-healing setup** — `opencli setup` verifies Browser Bridge connectivity; `opencli doctor` diagnoses daemon, extension, and live browser connectivity.
+- **Self-healing setup** — `opencli doctor` diagnoses and auto-starts the daemon, extension, and live browser connectivity.
 - **Dynamic Loader** — Simply drop `.ts` or `.yaml` adapters into the `clis/` folder for auto-registration.
 - **Dual-Engine Architecture** — Supports both YAML declarative data pipelines and robust browser runtime TypeScript injections.
 
@@ -57,7 +55,6 @@ That's it! The daemon auto-starts when you run any browser command. No tokens, n
 > **Tip**: Use `opencli doctor` for ongoing diagnosis:
 > ```bash
 > opencli doctor            # Check extension + daemon connectivity
-> opencli doctor --live     # Also test live browser commands
 > ```
 
 ## Quick Start
@@ -119,6 +116,7 @@ Run `opencli list` for the live registry.
 | **apple-podcasts** | `search` `episodes` `top` | Public |
 | **xiaoyuzhou** | `podcast` `podcast-episodes` `episode` | Public |
 | **zhihu** | `hot` `search` `question` `download` | Browser |
+| **weixin** | `download` | Browser |
 | **youtube** | `search` `video` `transcript` | Browser |
 | **boss** | `search` `detail` `recommend` `joblist` `greet` `batchgreet` `send` `chatlist` `chatmsg` `invite` `mark` `exchange` `resume` `stats` | Browser |
 | **coupang** | `search` `add-to-cart` | Browser |
@@ -196,6 +194,7 @@ OpenCLI supports downloading images, videos, and articles from supported platfor
 | **bilibili** | Videos | Requires `yt-dlp` installed |
 | **twitter** | Images, Videos | Downloads from user media tab or single tweet |
 | **zhihu** | Articles (Markdown) | Exports articles with optional image download |
+| **weixin** | Articles (Markdown) | Exports WeChat Official Account articles |
 
 ### Prerequisites
 
@@ -229,6 +228,9 @@ opencli zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./zhihu
 
 # Export with local images
 opencli zhihu download "https://zhuanlan.zhihu.com/p/xxx" --download-images
+
+# Export WeChat article to Markdown
+opencli weixin download --url "https://mp.weixin.qq.com/s/xxx" --output ./weixin
 ```
 
 
@@ -291,10 +293,11 @@ See **[TESTING.md](./TESTING.md)** for how to run and write tests.
   - View extension logs: `curl localhost:19825/logs`
 
 
-
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=jackwener/opencli&type=Date)](https://star-history.com/#jackwener/opencli&Date)
+
+After publishing the new version, remember to update the browser extension in the Chrome Web Store as well, so the extension release stays in sync with the CLI release.
 
 ## License
 

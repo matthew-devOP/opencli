@@ -202,25 +202,17 @@ export function runCli(BUILTIN_CLIS: string, USER_CLIS: string): void {
       console.log(renderCascadeResult(result));
     });
 
-  // ── Built-in: doctor / setup / completion ─────────────────────────────────
+  // ── Built-in: doctor / completion ──────────────────────────────────────────
 
   program
     .command('doctor')
     .description('Diagnose opencli browser bridge connectivity')
-    .option('--live', 'Test browser connectivity (requires Chrome running)', false)
+    .option('--no-live', 'Skip live browser connectivity test')
     .option('--sessions', 'Show active automation sessions', false)
     .action(async (opts) => {
       const { runBrowserDoctor, renderBrowserDoctorReport } = await import('./doctor.js');
       const report = await runBrowserDoctor({ live: opts.live, sessions: opts.sessions, cliVersion: PKG_VERSION });
       console.log(renderBrowserDoctorReport(report));
-    });
-
-  program
-    .command('setup')
-    .description('Interactive setup: verify browser bridge connectivity')
-    .action(async () => {
-      const { runSetup } = await import('./setup.js');
-      await runSetup({ cliVersion: PKG_VERSION });
     });
 
   program
