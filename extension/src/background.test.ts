@@ -183,3 +183,83 @@ describe('background tab isolation', () => {
     ]));
   });
 });
+
+describe('normalizeUrlForComparison', () => {
+  let normalize: ((url?: string) => string) | undefined;
+
+  beforeEach(async () => {
+    const mod = await import('./background');
+    normalize = mod.__test__.normalizeUrlForComparison;
+  });
+
+  it('removes hash fragments', () => {
+    expect(normalize!('https://example.com#section')).toBe('https://example.com/');
+    expect(normalize!('https://example.com/path#anchor')).toBe('https://example.com/path');
+  });
+
+  it('removes trailing slashes from non-root paths', () => {
+    expect(normalize!('https://example.com/path/')).toBe('https://example.com/path');
+    expect(normalize!('https://example.com/path///')).toBe('https://example.com/path');
+  });
+
+  it('keeps root slash for root path', () => {
+    expect(normalize!('https://example.com/')).toBe('https://example.com/');
+    expect(normalize!('https://example.com')).toBe('https://example.com/');
+  });
+
+  it('removes default ports', () => {
+    expect(normalize!('https://example.com:443/')).toBe('https://example.com/');
+    expect(normalize!('http://example.com:80/')).toBe('http://example.com/');
+    expect(normalize!('https://example.com:8443/')).toBe('https://example.com:8443/');
+  });
+
+  it('preserves search params', () => {
+    expect(normalize!('https://example.com?q=test')).toBe('https://example.com/?q=test');
+    expect(normalize!('https://example.com/path?a=1&b=2#top')).toBe('https://example.com/path?a=1&b=2');
+  });
+
+  it('handles non-standard URLs (fallback)', () => {
+    expect(normalize!('data:text/html,<html></html>')).toBe('data:text/html,<html></html>');
+    expect(normalize!('chrome://extensions')).toBe('chrome://extensions');
+    expect(normalize!('about:blank#foo')).toBe('about:blank');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(normalize!('')).toBe('');
+    expect(normalize!(undefined)).toBe('');
+  });
+});
+
+describe('isTargetUrl', () => {
+  let isTarget: ((currentUrl: string | undefined, targetUrl: string) => boolean) | undefined;
+
+  beforeEach(async () => {
+    const mod = await import('./background');
+    isTarget = mod.__test__.isTargetUrl;
+  });
+
+  it('compares URLs with different trailing slashes', () => {
+    expect(isTarget!('https://example.com/', 'https://example.com')).toBe(true);
+    expect(isTarget!('https://example.com/path/', 'https://example.com/path')).toBe(true);
+  });
+
+  it('compares URLs with different hash fragments', () => {
+    expect(isTarget!('https://example.com#section', 'https://example.com')).toBe(true);
+    expect(isTarget!('https://example.com/', 'https://example.com#top')).toBe(true);
+  });
+
+  it('compares URLs with default ports', () => {
+    expect(isTarget!('https://example.com:443/', 'https://example.com')).toBe(true);
+    expect(isTarget!('http://example.com:80/', 'http://example.com')).toBe(true);
+  });
+
+  it('returns false for different URLs', () => {
+    expect(isTarget('https://example.com', 'https://other.com')).toBe(false);
+    expect(isTarget('https://example.com/path', 'https://example.com/other')).toBe(false);
+  });
+
+  it('preserves search params in comparison', () => {
+    expect(isTarget('https://example.com?q=1', 'https://example.com?q=2')).toBe(false);
+    expect(isTarget('https://example.com?q=test', 'https://example.com?q=test')).toBe(true);
+  });
+});

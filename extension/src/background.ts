@@ -235,17 +235,37 @@ function isDebuggableUrl(url?: string): boolean {
   return !url.startsWith('chrome://') && !url.startsWith('chrome-extension://');
 }
 
+/**
+ * Normalize a URL for comparison, ignoring hash, trailing slashes, and default ports.
+ * Handles http/https URLs and falls back to basic string cleaning for non-standard URLs.
+ *
+ * Examples:
+ * - https://example.com/ → https://example.com/
+ * - https://example.com#section → https://example.com/
+ * - https://example.com:443/ → https://example.com/
+ * - https://example.com/foo/ → https://example.com/foo
+ * - data:text/html,<foo> → data:text/html,<foo>
+ */
 function normalizeUrlForComparison(url?: string): string {
   if (!url) return '';
   try {
     const parsed = new URL(url);
+    // Remove fragment (hash)
     parsed.hash = '';
-    if ((parsed.protocol === 'https:' && parsed.port === '443') || (parsed.protocol === 'http:' && parsed.port === '80')) {
+    // Remove default ports
+    if ((parsed.protocol === 'https:' && parsed.port === '443') ||
+        (parsed.protocol === 'http:' && parsed.port === '80')) {
       parsed.port = '';
     }
-    const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/+$/, '');
-    return `${parsed.protocol}//${parsed.host}${pathname}${parsed.search}`;
+    // Only apply pathname normalization to http/https URLs
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      // Remove trailing slashes from pathname, but keep root as '/'
+      parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+    }
+    return parsed.toString();
   } catch {
+    // Fallback for non-standard URLs (data:, about:, chrome:, etc.)
+    // Remove hash and trailing slashes
     return url.replace(/#.*$/, '').replace(/\/+$/, '');
   }
 }
@@ -519,6 +539,8 @@ async function handleSessions(cmd: Command): Promise<Result> {
 }
 
 export const __test__ = {
+  normalizeUrlForComparison,
+  isTargetUrl,
   handleNavigate,
   handleTabs,
   handleSessions,
