@@ -25,6 +25,8 @@ import {
   autoScrollJs,
   networkRequestsJs,
   waitForDomStableJs,
+  waitForCaptureJs,
+  waitForSelectorJs,
 } from './dom-helpers.js';
 import { isRecord, saveBase64ToFile } from '../utils.js';
 
@@ -255,6 +257,11 @@ class CDPPage implements IPage {
       await new Promise((resolve) => setTimeout(resolve, waitTime * 1000));
       return;
     }
+    if (options.selector) {
+      const timeout = (options.timeout ?? 10) * 1000;
+      await this.evaluate(waitForSelectorJs(options.selector, timeout));
+      return;
+    }
     if (options.text) {
       const timeout = (options.timeout ?? 30) * 1000;
       await this.evaluate(waitForTextJs(options.text, timeout));
@@ -325,6 +332,11 @@ class CDPPage implements IPage {
     const { generateReadInterceptedJs } = await import('../interceptor.js');
     const result = await this.evaluate(generateReadInterceptedJs('__opencli_xhr'));
     return Array.isArray(result) ? result : [];
+  }
+
+  async waitForCapture(timeout: number = 10): Promise<void> {
+    const maxMs = timeout * 1000;
+    await this.evaluate(waitForCaptureJs(maxMs));
   }
 }
 
