@@ -77,6 +77,10 @@ interface ParsedSource {
   localPath?: string;
 }
 
+function isLocalPluginSource(source?: string): boolean {
+  return typeof source === 'string' && source.startsWith('local:');
+}
+
 // ── Validation helpers ──────────────────────────────────────────────────────
 
 export interface ValidationResult {
@@ -203,6 +207,8 @@ function postInstallMonorepoLifecycle(repoDir: string, pluginDirs: string[]): vo
  *   "github:user/repo"            — single plugin or full monorepo
  *   "github:user/repo/subplugin"  — specific sub-plugin from a monorepo
  *   "https://github.com/user/repo"
+ *   "file:///absolute/path"       — local plugin directory (symlinked)
+ *   "/absolute/path"             — local plugin directory (symlinked)
  *
  * Returns the installed plugin name(s).
  */
@@ -219,10 +225,13 @@ export function installPlugin(source: string): string | string[] {
       `  ./local-plugin-dir`
     );
   }
-
   // Clone to a temporary location first so we can inspect the manifest
   const tmpCloneDir = path.join(os.tmpdir(), `opencli-clone-${Date.now()}`);
   const { name: repoName, subPlugin } = parsed;
+
+  if (parsed.type === 'local') {
+    return installLocalPlugin(parsed.localPath!, repoName);
+  }
 
   if (parsed.type === 'git') {
     try {
@@ -299,6 +308,90 @@ function installSinglePlugin(
   }
 
   return pluginName;
+}
+
+/**
+ * Install a local plugin by creating a symlink.
+ * Used for plugin development: the source directory is symlinked into
+ * the plugins dir so changes are reflected immediately.
+ */
+function installLocalPlugin(localPath: string, name: string): string {
+  if (!fs.existsSync(localPath)) {
+    throw new Error(`Local plugin path does not exist: ${localPath}`);
+  }
+
+  const stat = fs.statSync(localPath);
+  if (!stat.isDirectory()) {
+    throw new Error(`Local plugin path is not a directory: ${localPath}`);
+  }
+
+  const manifest = readPluginManifest(localPath);
+
+  // Check compatibility
+  if (manifest?.opencli && !checkCompatibility(manifest.opencli)) {
+    throw new Error(
+      `Plugin requires opencli ${manifest.opencli}, but current version is incompatible.`
+    );
+  }
+
+  const pluginName = manifest?.name ?? name;
+  const targetDir = path.join(PLUGINS_DIR, pluginName);
+
+  if (fs.existsSync(targetDir)) {
+    throw new Error(`Plugin "${pluginName}" is already installed at ${targetDir}`);
+  }
+
+  const validation = validatePluginStructure(localPath);
+  if (!validation.valid) {
+    throw new Error(`Invalid plugin structure:\n- ${validation.errors.join('\n- ')}`);
+  }
+
+  fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+
+  // Symlink so local changes are reflected without reinstall
+  const resolvedPath = path.resolve(localPath);
+  const linkType = isWindows ? 'junction' : 'dir';
+  fs.symlinkSync(resolvedPath, targetDir, linkType);
+
+  // Install dependencies and transpile
+  installDependencies(localPath);
+  finalizePluginRuntime(localPath);
+
+  // Record in lockfile
+  const lock = readLockFile();
+  const commitHash = getCommitHash(localPath);
+  lock[pluginName] = {
+    source: `local:${resolvedPath}`,
+    commitHash: commitHash ?? 'local',
+    installedAt: new Date().toISOString(),
+  };
+  writeLockFile(lock);
+
+  return pluginName;
+}
+
+function updateLocalPlugin(
+  name: string,
+  targetDir: string,
+  lock: Record<string, LockEntry>,
+  lockEntry?: LockEntry,
+): void {
+  const pluginDir = fs.realpathSync(targetDir);
+
+  const validation = validatePluginStructure(pluginDir);
+  if (!validation.valid) {
+    log.warn(`Plugin "${name}" structure invalid:\n- ${validation.errors.join('\n- ')}`);
+  }
+
+  postInstallLifecycle(pluginDir);
+
+  lock[name] = {
+    source: lockEntry?.source ?? `local:${pluginDir}`,
+    commitHash: getCommitHash(pluginDir) ?? 'local',
+    installedAt: lockEntry?.installedAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  writeLockFile(lock);
 }
 
 /** Install sub-plugins from a monorepo. */
@@ -462,6 +555,11 @@ export function updatePlugin(name: string): void {
   const lock = readLockFile();
   const lockEntry = lock[name];
 
+  if (isLocalPluginSource(lockEntry?.source)) {
+    updateLocalPlugin(name, targetDir, lock, lockEntry);
+    return;
+  }
+
   if (lockEntry?.monorepo) {
     // Monorepo update: pull the repo root
     const monoDir = path.join(getMonoreposDir(), lockEntry.monorepo.name);
@@ -596,9 +694,7 @@ export function listPlugins(): PluginInfo[] {
       }
     }
 
-    const source = lockEntry?.monorepo
-      ? lockEntry.source
-      : getPluginSource(pluginDir);
+    const source = lockEntry?.source ?? getPluginSource(pluginDir);
 
     plugins.push({
       name: entry.name,
@@ -864,4 +960,6 @@ export {
   writeLockFile as _writeLockFile,
   isSymlinkSync as _isSymlinkSync,
   getMonoreposDir as _getMonoreposDir,
+  installLocalPlugin as _installLocalPlugin,
+  isLocalPluginSource as _isLocalPluginSource,
 };

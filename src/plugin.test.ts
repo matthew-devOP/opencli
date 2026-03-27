@@ -31,6 +31,8 @@ const {
   _isSymlinkSync,
   _getMonoreposDir,
   getLockFilePath,
+  _installLocalPlugin,
+  _isLocalPluginSource,
 } = pluginModule;
 
 describe('parseSource', () => {
@@ -270,6 +272,32 @@ describe('listPlugins', () => {
     const plugins = listPlugins();
     expect(Array.isArray(plugins)).toBe(true);
   });
+
+  it('prefers lockfile source for local symlink plugins', () => {
+    const localTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'opencli-local-list-'));
+    const linkPath = path.join(PLUGINS_DIR, '__test-list-plugin__');
+
+    fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+    fs.writeFileSync(path.join(localTarget, 'hello.yaml'), 'site: test\nname: hello\n');
+    fs.symlinkSync(localTarget, linkPath, 'dir');
+
+    const lock = _readLockFile();
+    lock['__test-list-plugin__'] = {
+      source: `local:${localTarget}`,
+      commitHash: 'local',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    const plugins = listPlugins();
+    const found = plugins.find(p => p.name === '__test-list-plugin__');
+    expect(found?.source).toBe(`local:${localTarget}`);
+
+    try { fs.unlinkSync(linkPath); } catch {}
+    try { fs.rmSync(localTarget, { recursive: true, force: true }); } catch {}
+    delete lock['__test-list-plugin__'];
+    _writeLockFile(lock);
+  });
 });
 
 describe('uninstallPlugin', () => {
@@ -311,6 +339,45 @@ describe('uninstallPlugin', () => {
 describe('updatePlugin', () => {
   it('throws for non-existent plugin', () => {
     expect(() => updatePlugin('__nonexistent__')).toThrow('not installed');
+  });
+
+  it('refreshes local plugins without running git pull', () => {
+    const localTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'opencli-local-update-'));
+    const linkPath = path.join(PLUGINS_DIR, '__test-local-update__');
+
+    fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+    fs.writeFileSync(path.join(localTarget, 'hello.yaml'), 'site: test\nname: hello\n');
+    fs.symlinkSync(localTarget, linkPath, 'dir');
+
+    const lock = _readLockFile();
+    lock['__test-local-update__'] = {
+      source: `local:${localTarget}`,
+      commitHash: 'local',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockExecFileSync.mockClear();
+    updatePlugin('__test-local-update__');
+
+    expect(
+      mockExecFileSync.mock.calls.some(
+        ([cmd, args, opts]) => cmd === 'git'
+          && Array.isArray(args)
+          && args[0] === 'pull'
+          && opts?.cwd === linkPath,
+      ),
+    ).toBe(false);
+
+    const updated = _readLockFile()['__test-local-update__'];
+    expect(updated?.source).toBe(`local:${localTarget}`);
+    expect(updated?.updatedAt).toBeDefined();
+
+    try { fs.unlinkSync(linkPath); } catch {}
+    try { fs.rmSync(localTarget, { recursive: true, force: true }); } catch {}
+    const finalLock = _readLockFile();
+    delete finalLock['__test-local-update__'];
+    _writeLockFile(finalLock);
   });
 });
 
@@ -606,5 +673,52 @@ describe('listPlugins with monorepo metadata', () => {
     expect(found!.monorepoName).toBe('test-mono');
     expect(found!.commands).toContain('hello');
     expect(found!.source).toBe('https://github.com/user/test-mono.git');
+  });
+});
+
+describe('installLocalPlugin', () => {
+  let tmpDir: string;
+  const pluginName = '__test-local-plugin__';
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opencli-local-install-'));
+    fs.writeFileSync(path.join(tmpDir, 'hello.yaml'), 'site: test\nname: hello\n');
+  });
+
+  afterEach(() => {
+    // Clean up symlink in plugins dir
+    const linkPath = path.join(PLUGINS_DIR, pluginName);
+    try { fs.unlinkSync(linkPath); } catch {}
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    const lock = _readLockFile();
+    delete lock[pluginName];
+    _writeLockFile(lock);
+  });
+
+  it('creates a symlink to the local directory', () => {
+    const result = _installLocalPlugin(tmpDir, pluginName);
+    expect(result).toBe(pluginName);
+    const linkPath = path.join(PLUGINS_DIR, pluginName);
+    expect(fs.existsSync(linkPath)).toBe(true);
+    expect(_isSymlinkSync(linkPath)).toBe(true);
+  });
+
+  it('records local: source in lockfile', () => {
+    _installLocalPlugin(tmpDir, pluginName);
+    const lock = _readLockFile();
+    expect(lock[pluginName]).toBeDefined();
+    expect(lock[pluginName].source).toMatch(/^local:/);
+  });
+
+  it('throws for non-existent path', () => {
+    expect(() => _installLocalPlugin('/does/not/exist', 'x')).toThrow('does not exist');
+  });
+});
+
+describe('isLocalPluginSource', () => {
+  it('detects lockfile local sources', () => {
+    expect(_isLocalPluginSource('local:/tmp/plugin')).toBe(true);
+    expect(_isLocalPluginSource('https://github.com/user/repo.git')).toBe(false);
+    expect(_isLocalPluginSource(undefined)).toBe(false);
   });
 });
