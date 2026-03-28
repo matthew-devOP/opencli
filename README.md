@@ -22,6 +22,7 @@ A CLI tool that turns **any website**, **Electron app**, or **local CLI tool** i
 
 - **CLI All Electron** — CLI-ify apps like Antigravity Ultra! Now AI can control itself natively.
 - **Account-safe** — Reuses Chrome's logged-in state; your credentials never leave the browser.
+- **Anti-detection built-in** — Patches `navigator.webdriver`, stubs `window.chrome`, fakes plugin lists, cleans ChromeDriver/Playwright globals, and strips CDP frames from Error stack traces. Extensive anti-fingerprinting and risk-control evasion measures baked in at every layer.
 - **AI Agent ready** — `explore` discovers APIs, `synthesize` generates adapters, `cascade` finds auth strategies.
 - **External CLI Hub** — Discover, auto-install, and passthrough commands to any external CLI (gh, obsidian, docker, etc). Zero setup.
 - **Self-healing setup** — `opencli doctor` diagnoses and auto-starts the daemon, extension, and live browser connectivity.
