@@ -104,9 +104,14 @@ That's it! The daemon auto-starts when you run any browser command. No tokens, n
 
 ## Built-in Commands
 
-65+ adapters across global and Chinese platforms. Run `opencli list` for the live registry, or browse the full table:
+| Site | Commands |
+|------|----------|
+| **xiaohongshu** | `search` `feed` `user` `download` `publish` `notifications` |
+| **bilibili** | `hot` `search` `history` `feed` `ranking` `download` |
+| **twitter** | `trending` `search` `timeline` `bookmarks` `post` `download` |
+| **reddit** | `hot` `frontpage` `search` `subreddit` `user` `upvote` |
 
-**[→ All supported sites & commands](./docs/adapters/index.md)**
+65+ adapters in total — **[→ see all supported sites & commands](./docs/adapters/index.md)**
 
 ### External CLI Hub
 
