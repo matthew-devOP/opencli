@@ -31,21 +31,38 @@ export function parseVideoId(input: string): string {
 export function buildQuietPlaybackJs(): string {
   return `
     (async () => {
-      try {
-        const player = window.movie_player;
-        if (player?.mute) player.mute();
-        if (player?.pauseVideo) player.pauseVideo();
-      } catch {}
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const deadline = Date.now() + 5000;
 
-      try {
-        const media = document.querySelector('video');
-        if (media) {
-          media.muted = true;
-          media.pause();
-        }
-      } catch {}
+      while (Date.now() < deadline) {
+        let quieted = false;
 
-      return true;
+        try {
+          const player = window.movie_player;
+          if (player?.mute) {
+            player.mute();
+            quieted = true;
+          }
+          if (player?.pauseVideo) {
+            player.pauseVideo();
+            quieted = true;
+          }
+        } catch {}
+
+        try {
+          const media = document.querySelector('video');
+          if (media) {
+            media.muted = true;
+            media.pause();
+            quieted = true;
+          }
+        } catch {}
+
+        if (quieted) return true;
+        await wait(100);
+      }
+
+      return false;
     })()
   `;
 }

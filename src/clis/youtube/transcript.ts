@@ -35,7 +35,7 @@ cli({
   func: async (page, kwargs) => {
     const videoId = parseVideoId(kwargs.url);
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    await page.goto(videoUrl);
+    await page.goto(videoUrl, { waitUntil: 'none' });
     await quietWatchPlayback(page);
     await page.wait(3);
 

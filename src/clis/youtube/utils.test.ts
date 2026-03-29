@@ -4,6 +4,8 @@ import { buildQuietPlaybackJs, quietWatchPlayback } from './utils.js';
 describe('youtube utils', () => {
   it('buildQuietPlaybackJs mutes and pauses both player and media element', () => {
     const js = buildQuietPlaybackJs();
+    expect(js).toContain('Date.now() + 5000');
+    expect(js).toContain('await wait(100)');
     expect(js).toContain('player?.mute');
     expect(js).toContain('player?.pauseVideo');
     expect(js).toContain("document.querySelector('video')");
