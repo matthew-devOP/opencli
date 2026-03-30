@@ -1,6 +1,6 @@
 ---
 name: cross-project-adapter-migration
-description: "Cross-project CLI command migration workflow for opencli. Use when importing commands from external CLI projects (python/node) like rdt-cli, twitter-cli, etc. Covers: source analysis → gap matrix → batch migration → README/SKILL.md update."
+description: "Cross-project CLI command migration workflow for opencli. Use whenever importing, porting, or migrating commands from external CLI projects (Python/Node/Go) into opencli — e.g. rdt-cli, twitter-cli, or any third-party CLI tool for a platform opencli supports. Covers: source project analysis → feature gap matrix → batch adapter implementation → doc updates. Triggers on: '把 xxx-cli 迁移过来', 'migrate commands from X', '对齐 xxx 功能', 'import from external CLI', 'port X commands', or when expanding opencli support for a platform that already has a third-party CLI."
 ---
 
 # Cross-Project Adapter Migration
