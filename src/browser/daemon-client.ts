@@ -19,7 +19,7 @@ function generateId(): string {
 
 export interface DaemonCommand {
   id: string;
-  action: 'exec' | 'navigate' | 'tabs' | 'cookies' | 'screenshot' | 'close-window' | 'sessions' | 'set-file-input' | 'bind-current';
+  action: 'exec' | 'navigate' | 'tabs' | 'cookies' | 'screenshot' | 'close-window' | 'sessions' | 'set-file-input';
   tabId?: number;
   code?: string;
   workspace?: string;
@@ -27,8 +27,6 @@ export interface DaemonCommand {
   op?: string;
   index?: number;
   domain?: string;
-  matchDomain?: string;
-  matchPathPrefix?: string;
   format?: 'png' | 'jpeg';
   quality?: number;
   fullPage?: boolean;
@@ -146,8 +144,3 @@ export async function listSessions(): Promise<BrowserSessionInfo[]> {
   const result = await sendCommand('sessions');
   return Array.isArray(result) ? result : [];
 }
-
-export async function bindCurrentTab(workspace: string, opts: { matchDomain?: string; matchPathPrefix?: string } = {}): Promise<unknown> {
-  return sendCommand('bind-current', { workspace, ...opts });
-}
-
